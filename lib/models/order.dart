@@ -1,5 +1,3 @@
-
-
 import 'package:smh_front/models/model.dart';
 import 'package:smh_front/models/neighborhood.dart';
 import 'package:smh_front/models/user.dart';
@@ -11,6 +9,7 @@ class Order extends Model {
   final String? recipientName;
   final String? recipientPhone;
   final Neighborhood? neighborhood;
+  final String? createdAt;
   final List<OrderItem>? items;
   final double? total;
   final double? subTotal;
@@ -22,22 +21,31 @@ class Order extends Model {
     this.recipientName,
     this.recipientPhone,
     this.neighborhood,
+    this.createdAt,
     this.items,
     this.total,
     this.subTotal,
   });
 
-  factory Order.fromJson(Map<String, dynamic> json, {User ?user, Neighborhood ?neighborhood}) {
+  factory Order.fromJson(
+    Map<String, dynamic> json, {
+    User? user,
+    Neighborhood? neighborhood,
+  }) {
     return Order(
       id: json['id'] as int?,
-      user: user ?? User(id: json['userId'] as int?, role: json['userType'] as String?),
+      user:
+          user ??
+          User(id: json['userId'] as int?, role: json['userType'] as String?),
       status: json['status'] as String?,
       recipientName: json['recipientName'] as String?,
       recipientPhone: json['recipientPhone'] as String?,
-      neighborhood: neighborhood ?? Neighborhood(id: json['neighborhoodId'] as int?),
+      neighborhood:
+          neighborhood ?? Neighborhood(id: json['neighborhoodId'] as int?),
       items: (json['items'] as List<dynamic>?)
           ?.map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      createdAt: json['createdAt'] as String,
       total: (json['total'] as num?)?.toDouble(),
       subTotal: (json['subTotal'] as num?)?.toDouble(),
     );
@@ -53,6 +61,7 @@ class Order extends Model {
       'recipientName': recipientName,
       'recipientPhone': recipientPhone,
       'neighborhoodId': neighborhood?.id,
+      'createdAt': createdAt,
       'items': items?.map((e) => e.toJson()).toList(),
       'total': total,
       'subTotal': subTotal,
@@ -60,11 +69,7 @@ class Order extends Model {
   }
 }
 
-enum OrderStatus {
-  pending,
-  inProgress,
-  completed,
-}
+enum OrderStatus { pending, inProgress, completed }
 
 class OrderItem {
   final int? id;
@@ -73,7 +78,13 @@ class OrderItem {
   final double? unit;
   final double? estimatedUnitPrice;
 
-  const OrderItem({this.id, this.productName, this.estimatedQuantity, this.unit, this.estimatedUnitPrice});
+  const OrderItem({
+    this.id,
+    this.productName,
+    this.estimatedQuantity,
+    this.unit,
+    this.estimatedUnitPrice,
+  });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(

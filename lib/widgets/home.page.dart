@@ -14,11 +14,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  final List<Widget> pages = [
+
+  final List<Widget> _pages = [
     CommercialDashboard(),
-    OrderDashboad(),
-    PurchaseHistoryPage(),
-    SettingPage(),
+    const OrdersDashboard(),
+    const PurchaseHistoryPage(),
+    const SettingPage(),
   ];
 
   void _onItemTapped(int index) {
@@ -30,37 +31,35 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Scaffold(
-        body: pages[_selectedIndex],
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(color: AppColors.bleu),
-          child: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent,
-            selectedItemColor: Color(0xFFF59E0B),
-            unselectedItemColor: Colors.grey[400],
-            elevation: 0,
-            currentIndex: _selectedIndex,
-            onTap: _onItemTapped,
-            items: [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home, size: 30),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.receipt_outlined, size: 30),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.history, size: 30),
-                label: '',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.settings, size: 30),
-                label: '',
-              ),
-            ],
-          ),
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(color: AppColors.bleu),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          selectedItemColor: const Color(0xFFF59E0B),
+          unselectedItemColor: Colors.grey[400],
+          elevation: 0,
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home, size: 30),
+              label: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_outlined, size: 30),
+              label: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history, size: 30),
+              label: '',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings, size: 30),
+              label: '',
+            ),
+          ],
         ),
       ),
     );

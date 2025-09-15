@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:smh_front/models/user_models.dart';
-import 'package:smh_front/services/user_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class UserProfilePage extends StatefulWidget {
-  final int userId;
-
-  const UserProfilePage({Key? key, required this.userId}) : super(key: key);
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({Key? key}) : super(key: key);
 
   @override
-  State<UserProfilePage> createState() => _UserProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _UserProfilePageState extends State<UserProfilePage> {
-  User? user;
-  bool isLoading = true;
-  bool isUploadingPhoto = false;
-  String? error;
-  String? profileImageUrl;
+class _ProfilePageState extends State<ProfilePage> {
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  Map<String, dynamic> _userData = {};
+  bool _isLoading = true;
+  String? _profileImageUrl;
 
-  final ImagePicker _picker = ImagePicker();
+  // Couleurs du thème
+  static const Color primaryBlue = Color(0xFF1E3A5F);
+  static const Color accentYellow = Color(0xFFFFB800);
+  static const Color lightBlue = Color(0xFF4A90E2);
+  static const Color activeGreen = Color(0xFF00C896);
 
   @override
   void initState() {
@@ -27,462 +28,433 @@ class _UserProfilePageState extends State<UserProfilePage> {
     _loadUserData();
   }
 
-  // Chargement des données utilisateur
   Future<void> _loadUserData() async {
     try {
-      setState(() {
-        isLoading = true;
-        error = null;
-      });
+      // Récupérer le token et l'ID utilisateur
+      final String? token = await _storage.read(key: 'auth_token');
+      final String? userId = await _storage.read(key: 'user_id');
 
-      final userData = await UserService.getUser(widget.userId);
+      if (token != null && userId != null) {
+        // Récupérer les données utilisateur depuis l'API
+        final response = await http.get(
+          Uri.parse('http://49.13.197.63:8001/api/users/$userId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
 
-      setState(() {
-        user = userData;
-        isLoading = false;
-        // Vous pouvez définir l'URL de l'image de profil ici si elle est retournée par l'API
-        // profileImageUrl = userData.profileImageUrl;
-      });
+        if (response.statusCode == 200) {
+          final responseData = jsonDecode(response.body);
+
+          if (responseData['value'] == '200') {
+            setState(() {
+              _userData = responseData['data'];
+              _isLoading = false;
+
+              // Si vous avez une URL pour l'image de profil, stockez-la ici
+              // _profileImageUrl = _userData['profilePictureUrl'];
+            });
+
+            // Stocker les données utilisateur pour un accès futur
+            await _storage.write(
+              key: 'user_profile',
+              value: jsonEncode(_userData),
+            );
+          }
+        } else {
+          // En cas d'erreur, essayer de récupérer les données stockées localement
+          _loadStoredUserData();
+        }
+      } else {
+        _loadStoredUserData();
+      }
     } catch (e) {
-      setState(() {
-        error = 'Erreur lors du chargement: $e';
-        isLoading = false;
-      });
+      print('Error loading user data: $e');
+      _loadStoredUserData();
     }
   }
 
-  // Upload de la photo de profil
-  Future<void> _uploadProfilePicture(XFile imageFile) async {
+  Future<void> _loadStoredUserData() async {
     try {
-      setState(() {
-        isUploadingPhoto = true;
-      });
+      final String? userDataString = await _storage.read(key: 'user_profile');
 
-      final fileSize = await imageFile.length();
-      if (fileSize > 5 * 1024 * 1024) {
-        throw Exception('Le fichier est trop volumineux. Taille maximale: 5MB');
-      }
-
-      final result = await UserService.uploadProfilePicture(
-        widget.userId,
-        imageFile,
-      );
-
-      if (result['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result['message'] ?? 'Photo de profil mise à jour avec succès',
-              ),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        await _loadUserData();
-      } else {
-        throw Exception(result['message'] ?? 'Erreur lors de l\'upload');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de l\'upload: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
+      if (userDataString != null) {
         setState(() {
-          isUploadingPhoto = false;
+          _userData = jsonDecode(userDataString);
+          _isLoading = false;
+        });
+      } else {
+        // Si aucune donnée n'est disponible
+        setState(() {
+          _isLoading = false;
         });
       }
-    }
-  }
-
-  // Choisir une image depuis la galerie
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        await _uploadProfilePicture(image);
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la sélection: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print('Error loading stored user data: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  // Prendre une photo avec la caméra
-  Future<void> _takePictureWithCamera() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        await _uploadProfilePicture(image);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la prise de photo: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+  String _getGenderText(String gender) {
+    switch (gender) {
+      case 'FEMALE':
+        return 'Femme';
+      case 'MALE':
+        return 'Homme';
+      default:
+        return gender;
     }
   }
 
-  // Dialog pour choisir la source de l'image
-  void _showImageSourceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Choisir une photo'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Galerie'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _pickImageFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Appareil photo'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _takePictureWithCamera();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  String _getDocumentTypeText(String documentType) {
+    switch (documentType) {
+      case 'NATIONAL_ID_CARD':
+        return 'Carte nationale d\'identité';
+      case 'PASSPORT':
+        return 'Passeport';
+      case 'DRIVER_LICENSE':
+        return 'Permis de conduire';
+      default:
+        return documentType;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'AVAILABLE':
+        return 'Actif';
+      case 'BUSY':
+        return 'Occupé(e)';
+      case 'OFFLINE':
+        return 'Hors ligne';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'AVAILABLE':
+        return activeGreen;
+      case 'BUSY':
+        return Colors.orange;
+      case 'OFFLINE':
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 28),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
         title: const Text(
           'Profil',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
+        backgroundColor: Colors.white,
+        foregroundColor: primaryBlue,
+        elevation: 0,
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: Colors.black, size: 28),
+            icon: const Icon(Icons.edit, color: primaryBlue),
             onPressed: () {
-              // Action d'édition
+              // Action pour éditer le profil
             },
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadUserData,
-        child: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4285F4)),
-                ),
-              )
-            : error != null
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadUserData,
-                      child: const Text('Réessayer'),
-                    ),
-                  ],
-                ),
-              )
-            : SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    // Section supérieure avec photo de profil
-                    Container(
-                      width: double.infinity,
-                      color: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Column(
-                        children: [
-                          // Photo de profil avec bouton camera
-                          Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              Container(
-                                width: 140,
-                                height: 140,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white,
-                                  border: Border.all(
-                                    color: Colors.white!,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: ClipOval(
-                                  child: profileImageUrl != null
-                                      ? Image.network(
-                                          profileImageUrl!,
-                                          width: 140,
-                                          height: 140,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder:
-                                              (
-                                                context,
-                                                child,
-                                                loadingProgress,
-                                              ) {
-                                                if (loadingProgress == null)
-                                                  return child;
-                                                return const Center(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                );
-                                              },
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return _buildDefaultAvatar();
-                                              },
-                                        )
-                                      : _buildDefaultAvatar(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Section principale avec photo de profil et nom
+                  Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Column(
+                      children: [
+                        // Photo de profil avec icône panier
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.grey[100],
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 2,
                                 ),
                               ),
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: GestureDetector(
-                                  onTap: isUploadingPhoto
-                                      ? null
-                                      : _showImageSourceDialog,
-                                  child: Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF4285F4),
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          spreadRadius: 2,
-                                          blurRadius: 8,
-                                        ),
-                                      ],
+                              child: _profileImageUrl != null
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        _profileImageUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 120,
+                                        height: 120,
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.shopping_cart,
+                                      size: 40,
+                                      color: Colors.black87,
                                     ),
-                                    child: isUploadingPhoto
-                                        ? const Padding(
-                                            padding: EdgeInsets.all(10.0),
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.camera_alt,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                  ),
+                            ),
+                            // Icône caméra pour changer la photo
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: const BoxDecoration(
+                                  color: lightBlue,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Nom
+                        Text(
+                          '${_userData['firstName'] ?? ''}'.isNotEmpty
+                              ? '${_userData['firstName'] ?? ''}'
+                              : 'Utilisateur',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // ID utilisateur
+                        Text(
+                          'ID: #${_userData['username'] ?? 'PRD-2024-001'}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Statut actif
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              _userData['shopperStatus'] ?? 'AVAILABLE',
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _getStatusText(
+                                  _userData['shopperStatus'] ?? 'AVAILABLE',
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          // Nom
-                          Text(
-                            user != null ? user!.firstName : 'Jean',
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
+                  const SizedBox(height: 20),
 
-                          // ID
-                          Text(
-                            user != null
-                                ? 'ID: #PRD-2024-00${user!.id}'
-                                : 'ID: #PRD-2024-001',
+                  // Section Informations personnelles
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'Informations personnelles',
                             style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
                             ),
                           ),
-                          const SizedBox(height: 16),
+                        ),
+                        _buildModernInfoTile(
+                          '${_userData['firstName'] ?? ''} ${_userData['lastName'] ?? ''}',
+                          subtitle: 'Nom complet',
+                        ),
+                        _buildModernInfoTile(
+                          _userData['phoneNumber'] ?? '655......',
+                          subtitle: 'Téléphone',
+                        ),
+                        _buildModernInfoTile(
+                          _userData['email'] ?? 'jean....@gmail.com',
+                          subtitle: 'Email',
+                        ),
+                        _buildModernInfoTile(
+                          _getGenderText(
+                            _userData['gender'] ?? 'Non renseigné',
+                          ),
+                          subtitle: 'Genre',
+                          isLast: true,
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          // Statut
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  user != null && user!.enabled
-                                      ? 'Actif'
-                                      : 'Actif',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
+                  const SizedBox(height: 20),
+
+                  // Section Informations professionnelles
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'Informations professionnelles',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
                             ),
                           ),
-                        ],
+                        ),
+                        _buildModernInfoTile(
+                          _userData['role'] == 'SHOPPER' ? 'Shopper' : 'Autre',
+                          subtitle: 'Rôle',
+                        ),
+                        _buildModernInfoTile(
+                          (_userData['shopperAverageRating']?.toString() ??
+                                  '0.0') +
+                              '/5',
+                          subtitle: 'Note moyenne',
+                        ),
+                        _buildModernInfoTile(
+                          _userData['hireDate'] ?? 'Non renseigné',
+                          subtitle: 'Date d\'embauche',
+                        ),
+                        _buildModernInfoTile(
+                          _getDocumentTypeText(
+                            _userData['identityDocumentType'] ??
+                                'Non renseigné',
+                          ),
+                          subtitle: 'Type de document',
+                        ),
+                        _buildModernInfoTile(
+                          _userData['identityDocumentNumber'] ??
+                              'Non renseigné',
+                          subtitle: 'Numéro de document',
+                          isLast: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Bouton de déconnexion
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await _storage.deleteAll();
+                        Navigator.pushNamedAndRemoveUntil(
+                          context,
+                          '/login',
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[400],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Déconnexion',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 24),
-
-                    // Section Informations personnelles
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            spreadRadius: 0,
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              'Informations personnelles',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          _buildProfileItem(
-                            user != null
-                                ? '${user!.firstName} ${user!.lastName}'
-                                : 'Jean Paul ATEBA',
-                            isFirst: true,
-                          ),
-                          _buildProfileItem(
-                            user != null ? user!.username : '655......',
-                          ),
-                          _buildProfileItem(
-                            user != null ? user!.email : 'jean....@gmail.com',
-                          ),
-                          _buildProfileItem(
-                            user != null
-                                ? _getGenderText(user!.gender)
-                                : 'Nkolbisson',
-                            isLast: true,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                  const SizedBox(height: 60),
+                ],
               ),
-      ),
+            ),
     );
   }
 
-  Widget _buildDefaultAvatar() {
-    return Container(
-      width: 140,
-      height: 140,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF0F0F0),
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.shopping_cart, color: Colors.black, size: 60),
-    );
-  }
-
-  Widget _buildProfileItem(
-    String text, {
-    bool isFirst = false,
+  Widget _buildModernInfoTile(
+    String value, {
+    required String subtitle,
     bool isLast = false,
   }) {
     return Container(
@@ -495,51 +467,28 @@ class _UserProfilePageState extends State<UserProfilePage> {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
-                fontWeight: FontWeight.w400,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
             ),
           ),
-          Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+          Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
         ],
       ),
     );
-  }
-
-  String _getGenderText(String gender) {
-    switch (gender) {
-      case 'MALE':
-        return 'Homme';
-      case 'FEMALE':
-        return 'Femme';
-      default:
-        return gender;
-    }
-  }
-
-  String _getDocumentTypeText(String type) {
-    switch (type) {
-      case 'NATIONAL_ID_CARD':
-        return 'Carte d\'identité nationale';
-      case 'PASSPORT':
-        return 'Passeport';
-      case 'DRIVER_LICENSE':
-        return 'Permis de conduire';
-      default:
-        return type;
-    }
-  }
-
-  String _formatDate(String date) {
-    try {
-      final DateTime parsedDate = DateTime.parse(date);
-      return '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}';
-    } catch (e) {
-      return date;
-    }
   }
 }

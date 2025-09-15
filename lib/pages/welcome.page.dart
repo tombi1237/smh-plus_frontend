@@ -55,10 +55,7 @@ class _SMHWelcomePageState extends State<SMHWelcomePage> {
                       height: 55,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pushReplacementNamed(
-                            context,
-                            '/reset-password',
-                          );
+                          Navigator.pushReplacementNamed(context, '/login');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -106,21 +103,4 @@ class _SMHWelcomePageState extends State<SMHWelcomePage> {
       ),
     );
   }
-}
-
-// Exemple d’utilisation
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SMH+ Welcome',
-      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Roboto'),
-      home: const SMHWelcomePage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-void main() {
-  runApp(MyApp());
 }

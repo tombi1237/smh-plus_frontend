@@ -1,7 +1,6 @@
 // settings_page.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:smh_front/pages/user.profile.dart';
 
 class SettingPage extends StatefulWidget {
   final int? userId;
@@ -92,19 +91,12 @@ class _SettingsPageState extends State<SettingPage> {
 
   // Naviguer vers le profil
   void _navigateToProfile() {
-    if (widget.userId != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => UserProfilePage(userId: 1)),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Utilisateur non connecté'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    Navigator.pushNamed(context, '/profile');
+  }
+
+  // Naviguer vers la page de changement de mot de passe
+  void _navigateToResetPassword() {
+    Navigator.pushNamed(context, '/reset-password');
   }
 
   // Naviguer vers la sélection de langue
@@ -256,6 +248,15 @@ class _SettingsPageState extends State<SettingPage> {
                         _buildSettingItem(
                           title: 'Profil',
                           onTap: _navigateToProfile,
+                          showArrow: true,
+                        ),
+
+                        _buildDivider(),
+
+                        // Changement de mot de passe
+                        _buildSettingItem(
+                          title: 'Changer le mot de passe',
+                          onTap: _navigateToResetPassword,
                           showArrow: true,
                         ),
 
