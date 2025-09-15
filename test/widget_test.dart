@@ -11,15 +11,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smh_front/main.dart';
 import 'package:smh_front/models/user.dart';
 import 'package:smh_front/services/auth_service.dart';
+import 'package:smh_front/services/neighborhood_service.dart';
+import 'package:smh_front/services/order_service.dart';
 import 'package:smh_front/services/system.dart';
 import 'package:smh_front/services/user_service.dart';
 
 void main() {
   System.init(apiUrl: 'http://49.13.197.63:8003/api');
 
-  test('Tesing auth service', () async {
-    UserService userService = UserService();
     AuthService authService = AuthService(userService: userService);
+    UserService userService = UserService();
+    NeighborhoodService neighborhoodService = NeighborhoodService();
+    OrderService orderService = OrderService(
+      userService: userService,
+      neighborhoodService: neighborhoodService,
+    );
+
+  test('Tesing auth service', () async {
 
     User user = await authService.logIn('sophie_shopper', 'Test237@');
     expect(user.username, 'sophie_shopper');
@@ -27,7 +35,7 @@ void main() {
 
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+    await tester.pumpWidget(MyApp(orderService: orderService));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

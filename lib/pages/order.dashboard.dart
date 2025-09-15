@@ -26,9 +26,9 @@ class _CommandesPageState extends State<OrderDashboad> {
   void _loadOrders() {
     setState(() {
       futureOrders = widget.orderService.getOrders(
-      status: selectedStatus,
-      resolveRelated: true,
-    );
+        status: selectedStatus,
+        resolveRelated: true,
+      );
     });
   }
 
@@ -40,7 +40,7 @@ class _CommandesPageState extends State<OrderDashboad> {
         return Colors.orange;
       case OrderStatus.completed:
         return Colors.green;
-        
+
       default:
         return Colors.grey;
     }
@@ -83,7 +83,11 @@ class _CommandesPageState extends State<OrderDashboad> {
           } else {
             // Tu récupère les données comme ceci
             List<Order> orders = data.items;
-            return ListView.builder(itemBuilder: (context, index) => Text("item ${orders[index].recipientName}"), itemCount: orders.length);
+            return ListView.builder(
+              itemBuilder: (context, index) =>
+                  Text("item ${orders[index].recipientName}"),
+              itemCount: orders.length,
+            );
           }
         }
 

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:smh_front/models/user.dart';
 import 'package:smh_front/pages/commercial.dashboard.page.dart';
 import 'package:smh_front/pages/order.dashboard.dart';
 import 'package:smh_front/pages/purshase.history.page.dart';
 import 'package:smh_front/pages/settings.page.dart';
+import 'package:smh_front/services/order_service.dart';
 import 'package:smh_front/widgets/common/common.widget.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final OrderService orderService;
+
+  const HomePage({super.key, required this.orderService});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -14,12 +18,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
-  final List<Widget> pages = [
-    CommercialDashboard(),
-    OrderDashboad(),
-    PurchaseHistoryPage(),
-    SettingPage(),
-  ];
+  late List<Widget> pages;
+
+  _HomePageState() {
+    pages = <Widget>[
+      OrderDashboad(orderService: widget.orderService),
+      CommercialDashboard(orderService: widget.orderService),
+      PurchaseHistoryPage(),
+      SettingPage(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {

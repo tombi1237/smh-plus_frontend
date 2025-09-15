@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import '../services/orders_service.dart';
-import '../models/order_models.dart';
-import '../models/user_models.dart';
+import 'package:smh_front/models/order.dart';
+import 'package:smh_front/models/user.dart';
+import 'package:smh_front/services/order_service.dart';
 
 class TransmitLivreurPage extends StatefulWidget {
   final int orderId;
+  final OrderService orderService;
 
-  const TransmitLivreurPage({Key? key, required this.orderId})
+  const TransmitLivreurPage({Key? key, required this.orderId, required this.orderService})
     : super(key: key);
 
   @override
@@ -15,11 +16,11 @@ class TransmitLivreurPage extends StatefulWidget {
 
 class _TransmissionLivreurPageState extends State<TransmitLivreurPage> {
   Order? orderDetails;
-  List<UserData> livreurs = [];
+  List<User> livreurs = [];
   bool isLoading = true;
   bool isLoadingLivreurs = true;
   String? error;
-  UserData? selectedLivreur;
+  User? selectedLivreur;
   TextEditingController notesController = TextEditingController();
 
   @override
@@ -30,7 +31,7 @@ class _TransmissionLivreurPageState extends State<TransmitLivreurPage> {
 
   Future<void> fetchOrderDetails() async {
     try {
-      final order = await OrdersService.getOrderDetails(widget.orderId);
+      final order = await widget.orderService.getOrder(id: widget.orderId);
       setState(() {
         orderDetails = order;
         isLoading = false;
@@ -62,15 +63,14 @@ class _TransmissionLivreurPageState extends State<TransmitLivreurPage> {
     );
 
     try {
-      final success = await OrdersService.assignOrderToShopper(
-        widget.orderId,
-        selectedLivreur!.id,
-        notesController.text,
+      final order = await widget.orderService.assignOrderToShopper(
+        orderId: widget.orderId,
+        shopperId: selectedLivreur!.id!,
       );
 
       Navigator.of(context).pop(); // Fermer le loading
 
-      if (success) {
+      if (true) { // si il y a erreur, une exception est levée et le block 'catch' est exécuté
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
