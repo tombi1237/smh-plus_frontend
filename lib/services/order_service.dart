@@ -31,10 +31,160 @@ class OrderService extends Service {
     bool resolveRelated = true,
   }) {
     return _getOrders(
-      '${remotePath!}/commercial/${commercialId ?? 4}',
+      '${remotePath!}/commercial/${commercialId ?? system.user?.id ?? 4}',
       status: status,
       resolveRelated: resolveRelated,
     );
+  }
+
+  Future<Order?> getOrder({required int id, bool resolveRelated = true}) async {
+    final Response<JsonObject> response = await system.api.get<JsonObject>(
+      '$remotePath/$id',
+    );
+
+    return (response.data == null
+        ? null
+        : await _orderFromJson(response.data!));
+  }
+
+  Future<Order> createOrder(
+    Order order, {
+    required String deliveryType,
+    required String recipientName,
+    required String recipientPhone,
+  }) async {
+    JsonObject object = {
+      'userId': order.user?.id,
+      'userType': order.user!.role,
+      'deliveryType': deliveryType,
+      'recipentName': recipientName,
+      'recipientPhone': recipientPhone,
+      'neighborhoodId': order.neighborhood?.id,
+      'items': order.items?.map((e) => { 'productId': e.id, 'quantity': e.estimatedQuantity, 'amountToSpend': (e.estimatedUnitPrice ?? 0) * (e.estimatedQuantity ?? 0) }).toList(),
+    };
+
+    try {
+      final response = system.api.post<JsonObject>(
+        remotePath!,
+        data: object,
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> updateOrder(Order order) async {
+    if (order.id == null) {
+      throw Exception('L\'identifiant de la commande est requis');
+    }
+
+    final JsonObject object = {
+      'neighborhoodId': order.neighborhood?.id,
+      'items': order.items?.map((e) => { 'productId': e.id, 'quantity': e.estimatedQuantity, 'amountToSpend': (e.estimatedUnitPrice ?? 0) * (e.estimatedQuantity ?? 0) }).toList(),
+    };
+
+    try {
+      final response = system.api.put<JsonObject>(
+        '$remotePath/${order.id}',
+        data: object,
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<bool> deleteOrder({required int id}) async {
+    try {
+      await system.api.delete('$remotePath/$id');
+      return true;
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> routeOrderToStation({
+    required int orderId,
+    required int stationId,
+  }) {
+    try {
+      final response = system.api.post<JsonObject>(
+        '$remotePath/$orderId/route',
+        data: {'stationId': stationId},
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> assignOrderToShopper({
+    required int orderId,
+    required int shopperId,
+  }) {
+    try {
+      final response = system.api.post<JsonObject>(
+        '$remotePath/$orderId/shopper',
+        data: {'shopperId': shopperId},
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> assignOrderToProducer({
+    required int orderId,
+    required int producerId,
+  }) {
+    try {
+      final response = system.api.post<JsonObject>(
+        '$remotePath/$orderId/producer',
+        data: {'producerId': producerId},
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> addMerchantToOrder({
+    required int orderId,
+    required String productId,
+    required int merchantId,
+  }) {
+    try {
+      final response = system.api.post<JsonObject>(
+        '$remotePath/$orderId/merchant',
+        data: {'productId': productId, 'merchantId': merchantId},
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
+  }
+
+  Future<Order> assignOrderToDriver({
+    required int orderId,
+    required int driverId,
+  }) {
+    try {
+      final response = system.api.post<JsonObject>(
+        '$remotePath/$orderId/driver',
+        data: {'driverId': driverId},
+      );
+
+      return response.then((value) => _orderFromJson(data(value.data)));
+    } catch (e) {
+      throw Exception('Erreur inconnue: $e');
+    }
   }
 
   Future<PaginatedData<Order>> _getOrders(
@@ -60,15 +210,7 @@ class OrderService extends Service {
 
         final array = data(response.data)['content'] as JsonArray;
         for (JsonObject object in array) {
-          final User user = await userService.getUser(id: object['userId']);
-          final Neighborhood neighborhood = await neighborhoodService
-              .getNeighborhood(id: object['neighborhoodId']);
-          final Order order = Order.fromJson(
-            object,
-            user: user,
-            neighborhood: neighborhood,
-          );
-          orders.add(order);
+          orders.add(await _orderFromJson(object));
         }
 
         return PaginatedData<Order>.fromData(
@@ -86,46 +228,7 @@ class OrderService extends Service {
     }
   }
 
-  Future<Order?> getOrder(int id, {bool resolveRelated = true}) async {
-    final Response<JsonObject> response = await system.api.get<JsonObject>(
-      '$remotePath/$id',
-    );
-
-    return (response.data == null ? null : await orderFromJson(response.data!));
-  }
-
-  Future<Order> assignOrderToShopper({required int orderId, required int shopperId}) {
-    try {
-      final response = system.api.post<JsonObject>(
-        '$remotePath/$orderId/shopper',
-        data: {
-          'shopperId': shopperId,
-        },
-      );
-
-      return response.then((value) => orderFromJson(data(value.data)));
-    } catch (e) {
-      throw Exception('Erreur inconnue: $e');
-    }
-  }
-
-  Future<Order> routeOrderToStation({required int orderId, required int stationId})
-  {
-    try {
-      final response = system.api.post<JsonObject>(
-        '$remotePath/$orderId/route',
-        data: {
-          'stationId': stationId,
-        },
-      );
-
-      return response.then((value) => orderFromJson(data(value.data)));
-    } catch (e) {
-      throw Exception('Erreur inconnue: $e');
-    }
-  }
-
-  Future<Order> orderFromJson(
+  Future<Order> _orderFromJson(
     JsonObject object, {
     bool resolveRelated = true,
   }) async {
