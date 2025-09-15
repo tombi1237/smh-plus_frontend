@@ -8,10 +8,11 @@ import 'package:smh_front/pages/purshase.history.page.dart';
 import 'package:smh_front/pages/settings.page.dart';
 import 'package:smh_front/pages/user.profile.dart';
 import 'package:smh_front/pages/welcome.page.dart';
+import 'package:smh_front/services/system.dart';
 import 'package:smh_front/widgets/home.page.dart';
 
 void main() {
-  //  System.init(apiUrl: 'http://49.13.197.63:8003/api');
+  System.init(apiUrl: 'http://49.13.197.63:8003/api');
 
   runApp(const MyApp());
 }

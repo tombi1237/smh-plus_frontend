@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:smh_front/models/order_models.dart';
-import 'package:smh_front/services/orders_service.dart';
+import 'package:smh_front/models/order.dart';
+import 'package:smh_front/services/order_service.dart';
 
 // Page principale
 class CommercialDashboard extends StatefulWidget {
-  const CommercialDashboard({super.key});
+  final OrderService orderService;
+
+  const CommercialDashboard({super.key, required this.orderService});
 
   @override
-  _OrdersPageState createState() => _OrdersPageState();
+  State createState() => _OrdersPageState();
 }
 
 class _OrdersPageState extends State<CommercialDashboard> {
@@ -34,11 +36,11 @@ class _OrdersPageState extends State<CommercialDashboard> {
         errorMessage = null;
       });
 
-      final response = await OrdersService.getOrders();
+      final response = await widget.orderService.getOrders();
 
       setState(() {
-        orders = response.orders;
-        totalOrders = response.totalElements;
+        orders = response.items;
+        totalOrders = orders.length;
 
         // Calcul des statistiques
         pendingOrders = orders
@@ -47,7 +49,7 @@ class _OrdersPageState extends State<CommercialDashboard> {
         completedOrders = orders
             .where((order) => order.status == 'PAID')
             .length;
-        totalAmount = orders.fold(0.0, (sum, order) => sum + order.total);
+        totalAmount = orders.fold(0.0, (sum, order) => sum + (order.total ?? 0.0));
 
         isLoading = false;
       });

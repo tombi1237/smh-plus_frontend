@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:smh_front/models/order_models.dart';
-import 'package:smh_front/services/orders_service.dart';
+import 'package:smh_front/models/model.dart';
+import 'package:smh_front/models/order.dart';
+import 'package:smh_front/services/order_service.dart';
 
 // Page des commandes
 class OrderDashboad extends StatefulWidget {
-  final String? userToken;
+  final OrderService orderService;
 
-  const OrderDashboad({Key? key, this.userToken}) : super(key: key);
+  const OrderDashboad({super.key, required this.orderService});
 
   @override
   State<OrderDashboad> createState() => _CommandesPageState();
 }
 
 class _CommandesPageState extends State<OrderDashboad> {
-  List<Order> orders = [];
-  bool isLoading = true;
-  String errorMessage = '';
-  String selectedFilter = 'Toutes';
+  Future<PaginatedData<Order>>? futureOrders;
+  OrderStatus? selectedStatus;
 
   @override
   void initState() {
@@ -24,56 +23,22 @@ class _CommandesPageState extends State<OrderDashboad> {
     _loadOrders();
   }
 
-  Future<void> _loadOrders() async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-
-      // Utilisation du service commun
-      final response = await OrdersService.getOrders();
-
-      setState(() {
-        orders = response.orders;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
-    }
+  void _loadOrders() {
+    futureOrders = widget.orderService.getOrders(
+      status: selectedStatus,
+      resolveRelated: true,
+    );
   }
 
-  List<Order> get filteredOrders {
-    switch (selectedFilter) {
-      case 'Non traitées':
-        return orders.where((order) => order.status == 'PENDING').toList();
-      case 'En cours':
-        return orders.where((order) => order.status == 'PROCESSING').toList();
-      case 'Complétées':
-        return orders.where((order) => order.status == 'PAID').toList();
-      default:
-        return orders;
-    }
-  }
-
-  int get nonTraiteesCount =>
-      orders.where((order) => order.status == 'PENDING').length;
-  int get enCoursCount =>
-      orders.where((order) => order.status == 'PROCESSING').length;
-  int get completeesCount =>
-      orders.where((order) => order.status == 'PAID').length;
-
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(OrderStatus? status) {
     switch (status) {
-      case 'PENDING':
+      case OrderStatus.pending:
         return Colors.red;
-      case 'PROCESSING':
+      case OrderStatus.inProgress:
         return Colors.orange;
-      case 'PAID':
+      case OrderStatus.completed:
         return Colors.green;
+        
       default:
         return Colors.grey;
     }
