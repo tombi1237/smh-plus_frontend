@@ -63,6 +63,33 @@ class _CommandesPageState extends State<OrderDashboad> {
 
   @override
   Widget build(BuildContext context) {
+    // Ici, utilise un FutureBuilder pour gérer l'état de chargement comme ceci
+    return FutureBuilder(
+      future: futureOrders,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          if (snapshot.hasError) {
+            // Y a errreur
+            return Text("ERROR: ${snapshot.error}");
+          }
+
+          PaginatedData<Order>? data = snapshot.data;
+
+          if (data == null) {
+            // Rien à afficher mais aucune erreur
+            return Text("NO DATA !");
+          } else {
+            // Tu récupère les données comme ceci
+            List<Order> orders = data.items;
+            return ListView.builder(itemBuilder: (context, index) => Text("item ${orders[index].recipientName}"), itemCount: orders.length);
+          }
+        }
+
+        // Bon, là on attend
+        return CircularProgressIndicator();
+      },
+    );
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
