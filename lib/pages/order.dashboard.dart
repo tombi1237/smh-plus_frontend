@@ -24,10 +24,12 @@ class _CommandesPageState extends State<OrderDashboad> {
   }
 
   void _loadOrders() {
-    futureOrders = widget.orderService.getOrders(
+    setState(() {
+      futureOrders = widget.orderService.getOrders(
       status: selectedStatus,
       resolveRelated: true,
     );
+    });
   }
 
   Color _getStatusColor(OrderStatus? status) {
