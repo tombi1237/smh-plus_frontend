@@ -7,17 +7,10 @@ import 'package:smh_front/services/service.dart';
 class UserService extends Service {
   UserService() : super(remotePath: '/users');
 
-  Future<User> getUser({int? id}) async {
-    if (id == null) {
-      if (system.user == null || system.user!.id == null) {
-        throw Exception('No user is currently logged in.');
-      }
-      id = system.user!.id;
-    }
-    
+  Future<User> getUser({required int id}) async {    
     try {
       final response = await system.api.get<JsonObject>('${remotePath!}/$id');
-      return User.fromJson(data(response.data));
+      return User.fromJson(data(response));
     } catch (e) {
       rethrow;
     }

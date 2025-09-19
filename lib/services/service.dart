@@ -49,7 +49,8 @@ class Service {
     return code >= 200 && code <= 299;
   }
 
-  JsonObject data(JsonObject? object) {
+  JsonObject data(Response response) {
+    final object = response.data;
     return object?['data'] ?? object ?? {};
   }
 }

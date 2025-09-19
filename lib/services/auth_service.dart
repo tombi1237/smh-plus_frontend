@@ -24,7 +24,7 @@ class AuthService extends Service {
       );
 
       if (isOk(response)) {
-        final data = this.data(response.data);
+        final data = this.data(response);
         final userId = data['userId'] as int?;
         final token = data['token'] as String?;
 

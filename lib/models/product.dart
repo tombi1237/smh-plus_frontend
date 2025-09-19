@@ -1,3 +1,4 @@
+import 'package:smh_front/models/district.dart';
 import 'package:smh_front/models/model.dart';
 
 class Product extends Model {
@@ -6,9 +7,9 @@ class Product extends Model {
   final String? description;
   final String? unit;
   final double? pricePerUnit;
-  final String? subCategoryId;
+  final SubCategory? subCategory;
   final List<ProductImage>? images;
-  final int? districtId;
+  final District? district;
   final String? sellerType;
   final String? availabilityStatus;
 
@@ -18,25 +19,25 @@ class Product extends Model {
     this.description,
     this.unit,
     this.pricePerUnit,
-    this.subCategoryId,
+    this.subCategory,
     this.images,
-    this.districtId,
+    this.district,
     this.sellerType,
     this.availabilityStatus,
   });
 
-  factory Product.fromJson(Map<String, dynamic> json) {
+  factory Product.fromJson(Map<String, dynamic> json, { SubCategory? subCategory, District? district }) {
     return Product(
       id: json['productId'] as String?,
       name: json['name'] as String?,
       description: json['description'] as String?,
       unit: json['unit'] as String?,
       pricePerUnit: (json['pricePerUnit'] as num?)?.toDouble(),
-      subCategoryId: json['subCategoryId'] as String?,
+      subCategory: subCategory ?? SubCategory(id: json['subCategoryId'] as String?, name: ''),
       images: (json['images'] as List<dynamic>?)
           ?.map((e) => ProductImage.fromJson(e as Map<String, dynamic>))
           .toList(),
-      districtId: json['districtId'] as int?,
+      district: district ?? District(id: json['districtId'] as int?, name: ''),
       sellerType: json['sellerType'] as String?,
       availabilityStatus: json['availabilityStatus'] as String?,
     );
@@ -50,9 +51,9 @@ class Product extends Model {
       'description': description,
       'unit': unit,
       'pricePerUnit': pricePerUnit,
-      'subCategoryId': subCategoryId,
+      'subCategoryId': subCategory?.id,
       'images': images?.map((e) => e.toJson()).toList(),
-      'districtId': districtId,
+      'districtId': district?.id,
       'sellerType': sellerType,
       'availabilityStatus': availabilityStatus,
     };
