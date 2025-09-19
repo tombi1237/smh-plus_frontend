@@ -40,18 +40,11 @@ class AuthService extends Service {
       }
       // Catch Dio exceptions
     } on DioException catch (e) {
-      switch (e.response!.statusCode) {
-        case 400:
-          throw Exception('Une erreur est survenue. Veuillez réessayer.');
-        case 401:
-          throw Exception('Identifiants invalides. Veuillez réessayer.');
-        case 500:
-          throw Exception('Erreur serveur. Veuillez réessayer plus tard.');
-        default:
-          throw Exception('Erreur inconnue. Veuillez réessayer.');
-      }
-    } catch (e) {
-      throw Exception('Erreur inconnue: $e');
+      throw exception(e, messages: {
+        400: 'Une erreur est survenue. Veuillez réessayer.',
+        401: 'Identifiants invalides. Veuillez réessayer.',
+        500: 'Erreur serveur. Veuillez réessayer plus tard.',
+      });
     }
   }
 
