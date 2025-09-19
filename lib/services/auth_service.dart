@@ -55,6 +55,10 @@ class AuthService extends Service {
     }
   }
 
+  Future<void> logOut() {
+    return system.clearUser();
+  }
+
   Future<bool> changePassword(
     User user,
     String newPassword,
@@ -77,9 +81,5 @@ class AuthService extends Service {
 
   bool validatePassword(String password) {
     return password.length >= 6;
-  }
-
-  bool passwordsMatch(String password, String confirmPassword) {
-    return password == confirmPassword;
   }
 }
