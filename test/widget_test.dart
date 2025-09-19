@@ -19,8 +19,8 @@ import 'package:smh_front/services/user_service.dart';
 void main() {
   System.init(apiUrl: 'http://49.13.197.63:8003/api');
 
-    AuthService authService = AuthService(userService: userService);
     UserService userService = UserService();
+    AuthService authService = AuthService(userService: userService);
     NeighborhoodService neighborhoodService = NeighborhoodService();
     OrderService orderService = OrderService(
       userService: userService,
@@ -35,7 +35,7 @@ void main() {
 
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp(orderService: orderService));
+    await tester.pumpWidget(MyApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
