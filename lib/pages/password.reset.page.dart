@@ -72,7 +72,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         Future.delayed(const Duration(seconds: 2), () {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
+            MaterialPageRoute(builder: (_) => const UserLogin()),
           );
         });
       } else {
@@ -89,7 +89,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           Future.delayed(const Duration(seconds: 2), () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
+              MaterialPageRoute(builder: (_) => const UserLogin()),
             );
           });
         } else {

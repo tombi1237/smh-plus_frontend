@@ -4,14 +4,14 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+class UserLogin extends StatefulWidget {
+  const UserLogin({Key? key}) : super(key: key);
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<UserLogin> createState() => _UserLoginState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _UserLoginState extends State<UserLogin> {
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -52,45 +52,74 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200 && responseData['value'] == '200') {
         final userData = responseData['data'];
 
-        // Récupération et stockage de toutes les informations utilisateur
         final token = userData['token'];
-        final userId = userData['userId'];
+        final userId =
+            userData['id'] ?? userData['userId']; // Support both field names
+        final role = userData['role'];
 
-        // Stocker le token et l'ID utilisateur
+        // Stocker token et infos utilisateur
         await _storage.write(key: 'auth_token', value: token);
         await _storage.write(key: 'user_id', value: userId.toString());
+        await _storage.write(key: 'user_data', value: jsonEncode(userData));
+        await _storage.write(key: 'user_role', value: role);
 
-        // Stocker toutes les autres informations utilisateur disponibles
-        if (userData['name'] != null) {
-          await _storage.write(key: 'user_name', value: userData['name']);
+        // Stocker les informations utilisateur détaillées
+        if (userData['firstName'] != null) {
+          await _storage.write(
+            key: 'user_first_name',
+            value: userData['firstName'],
+          );
+        }
+        if (userData['lastName'] != null) {
+          await _storage.write(
+            key: 'user_last_name',
+            value: userData['lastName'],
+          );
+        }
+        if (userData['username'] != null) {
+          await _storage.write(
+            key: 'user_username',
+            value: userData['username'],
+          );
         }
         if (userData['email'] != null) {
           await _storage.write(key: 'user_email', value: userData['email']);
         }
-        if (userData['phone'] != null) {
-          await _storage.write(key: 'user_phone', value: userData['phone']);
+        if (userData['phoneNumber'] != null) {
+          await _storage.write(
+            key: 'user_phone',
+            value: userData['phoneNumber'],
+          );
         }
-        if (userData['profile_picture'] != null) {
+        if (userData['profilePictureUrl'] != null) {
           await _storage.write(
             key: 'user_profile_picture',
-            value: userData['profile_picture'],
+            value: userData['profilePictureUrl'],
+          );
+        }
+        if (userData['primaryAddress'] != null) {
+          await _storage.write(
+            key: 'user_address',
+            value: userData['primaryAddress'],
+          );
+        }
+        if (userData['gender'] != null) {
+          await _storage.write(key: 'user_gender', value: userData['gender']);
+        }
+        if (userData['loyaltyPoints'] != null) {
+          await _storage.write(
+            key: 'user_loyalty_points',
+            value: userData['loyaltyPoints'].toString(),
           );
         }
 
-        // Stocker toutes les données utilisateur en JSON pour un accès facile
-        await _storage.write(key: 'user_data', value: jsonEncode(userData));
-
         _showSnackBar('Connexion réussie !', Colors.green);
 
-        // Récupérer les informations utilisateur après connexion
+        // Charger profil complet si nécessaire
         await _fetchUserProfile(userId, token);
 
-        // Redirection vers la page d'accueil
-        Navigator.pushReplacementNamed(
-          context,
-          '/home',
-          arguments: {'userId': userId, 'userData': userData},
-        );
+        // Redirection basée sur le rôle
+        _redirectUserByRole(role, userId, userData);
       } else {
         _showSnackBar(
           responseData['text'] ?? 'Erreur de connexion',
@@ -107,6 +136,91 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  void _redirectUserByRole(
+    String role,
+    dynamic userId,
+    Map<String, dynamic> userData,
+  ) {
+    final arguments = {'userId': userId, 'userData': userData};
+
+    switch (role) {
+      case "CLIENT":
+        Navigator.pushReplacementNamed(
+          context,
+          '/client_page',
+          arguments: arguments,
+        );
+        break;
+
+      case "SHOPPER":
+        Navigator.pushReplacementNamed(
+          context,
+          '/client_page',
+          arguments: arguments,
+        );
+        break;
+
+      case "MERCHANT":
+        Navigator.pushReplacementNamed(
+          context,
+          '/merchant_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      case "DELIVERY_DRIVER":
+        Navigator.pushReplacementNamed(
+          context,
+          '/delivery_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      case "ADMIN":
+        Navigator.pushReplacementNamed(
+          context,
+          '/admin_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      case "STATION_CHIEF":
+        Navigator.pushReplacementNamed(
+          context,
+          '/station_chief_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      case "DISTRICT_CHIEF":
+        Navigator.pushReplacementNamed(
+          context,
+          '/district_chief_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      case "INTERNAL_TREASURER":
+        Navigator.pushReplacementNamed(
+          context,
+          '/treasurer_dashboard',
+          arguments: arguments,
+        );
+        break;
+
+      default:
+        // Rôle non reconnu - redirection vers une page par défaut
+        print('Rôle non reconnu: $role');
+        _showSnackBar('Rôle utilisateur non reconnu', Colors.orange);
+        Navigator.pushReplacementNamed(
+          context,
+          '/default_dashboard',
+          arguments: arguments,
+        );
+        break;
     }
   }
 
@@ -129,15 +243,29 @@ class _LoginPageState extends State<LoginPage> {
         if (profileData['value'] == '200') {
           final userProfile = profileData['data'];
 
-          // Stocker les informations complètes du profil
           await _storage.write(
             key: 'user_profile',
             value: jsonEncode(userProfile),
           );
 
-          // Stocker les informations spécifiques si elles existent
-          if (userProfile['name'] != null) {
-            await _storage.write(key: 'user_name', value: userProfile['name']);
+          // Mettre à jour les informations stockées avec les données du profil
+          if (userProfile['firstName'] != null) {
+            await _storage.write(
+              key: 'user_first_name',
+              value: userProfile['firstName'],
+            );
+          }
+          if (userProfile['lastName'] != null) {
+            await _storage.write(
+              key: 'user_last_name',
+              value: userProfile['lastName'],
+            );
+          }
+          if (userProfile['username'] != null) {
+            await _storage.write(
+              key: 'user_username',
+              value: userProfile['username'],
+            );
           }
           if (userProfile['email'] != null) {
             await _storage.write(
@@ -145,29 +273,46 @@ class _LoginPageState extends State<LoginPage> {
               value: userProfile['email'],
             );
           }
-          if (userProfile['phone'] != null) {
+          if (userProfile['phoneNumber'] != null) {
             await _storage.write(
               key: 'user_phone',
-              value: userProfile['phone'],
+              value: userProfile['phoneNumber'],
             );
           }
-          if (userProfile['address'] != null) {
+          if (userProfile['primaryAddress'] != null) {
             await _storage.write(
               key: 'user_address',
-              value: userProfile['address'],
+              value: userProfile['primaryAddress'],
             );
           }
-          if (userProfile['profile_picture'] != null) {
+          if (userProfile['profilePictureUrl'] != null) {
             await _storage.write(
               key: 'user_profile_picture',
-              value: userProfile['profile_picture'],
+              value: userProfile['profilePictureUrl'],
+            );
+          }
+          if (userProfile['gender'] != null) {
+            await _storage.write(
+              key: 'user_gender',
+              value: userProfile['gender'],
+            );
+          }
+          if (userProfile['loyaltyPoints'] != null) {
+            await _storage.write(
+              key: 'user_loyalty_points',
+              value: userProfile['loyaltyPoints'].toString(),
+            );
+          }
+          if (userProfile['enabled'] != null) {
+            await _storage.write(
+              key: 'user_enabled',
+              value: userProfile['enabled'].toString(),
             );
           }
         }
       }
     } catch (e) {
       print('Profile fetch error: $e');
-      // Ne pas afficher d'erreur à l'utilisateur car la connexion a réussi
     }
   }
 
@@ -202,6 +347,25 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 60),
 
+                // Titre de connexion avec style amélioré
+                Text(
+                  'Connexion',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: primaryBlue,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Accédez à votre espace personnel',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                ),
+
+                const SizedBox(height: 40),
+
                 // Formulaire
                 Container(
                   padding: const EdgeInsets.all(24),
@@ -232,20 +396,28 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _identifierController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
-                            hintText: 'Votre identifiant',
+                            hintText: 'Email ou nom d\'utilisateur',
                             hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: Icon(
+                              Icons.person_outline,
+                              color: Colors.grey[600],
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: primaryBlue),
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: primaryBlue,
+                                width: 2,
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -276,17 +448,24 @@ class _LoginPageState extends State<LoginPage> {
                           decoration: InputDecoration(
                             hintText: 'Votre mot de passe',
                             hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: Icon(
+                              Icons.lock_outline,
+                              color: Colors.grey[600],
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey[300]!),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: primaryBlue),
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: primaryBlue,
+                                width: 2,
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.grey[50],
@@ -311,19 +490,20 @@ class _LoginPageState extends State<LoginPage> {
                               : null,
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
 
                         SizedBox(
-                          height: 48,
+                          height: 52,
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryBlue,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 2,
+                              shadowColor: primaryBlue.withOpacity(0.3),
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -346,7 +526,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
 
                         Center(
                           child: TextButton(
@@ -361,6 +541,37 @@ class _LoginPageState extends State<LoginPage> {
                                 decoration: TextDecoration.underline,
                               ),
                             ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Lien vers l'inscription
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Pas encore de compte? ',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/register');
+                                },
+                                child: const Text(
+                                  'S\'inscrire',
+                                  style: TextStyle(
+                                    color: primaryBlue,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
