@@ -46,17 +46,41 @@ class ProductService extends Service {
   }
 
   Future<Product> getProduct({
-    required String uuid,
+    required String id,
     bool resolveRelated = true,
   }) async {
     final Response<JsonObject> response = await system.api.get<JsonObject>(
-      '$remotePath/$uuid',
+      '$remotePath/$id',
     );
 
     if (resolveRelated) {
       return Product.fromJson(response.data ?? JsonObject());
     } else {
       return Product.fromJson(response.data ?? JsonObject());
+    }
+  }
+
+  // ToDO: add addProduct, updateProduct and deleteProduct
+
+  Future<void> changeProductStatus({
+    required String productId,
+    required int sellerId,
+    required String status,
+  }) async {
+    try {
+      await system.api.post(
+        '$remotePath/status',
+        data: {'sellerId': sellerId, 'productId': productId, 'status': status},
+      );
+    } on DioException catch (e) {
+      throw exception(
+        e,
+        messages: {
+          400: 'Une erreur est survenu, réesayez plutard',
+          404: 'Une erreur est survenu, réesayez plutard',
+          500: 'Une erreur est survenu, réesayez plutard',
+        },
+      );
     }
   }
 
@@ -73,7 +97,10 @@ class ProductService extends Service {
 
       final data = this.data(response) as List;
 
-      return List.generate(data.length, (index) => Product.fromJson(data[index]));
+      return List.generate(
+        data.length,
+        (index) => Product.fromJson(data[index]),
+      );
     } catch (e) {
       throw Exception('Erreur inconnue: $e');
     }

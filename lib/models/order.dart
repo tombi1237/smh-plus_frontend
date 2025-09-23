@@ -1,5 +1,6 @@
 import 'package:smh_front/models/model.dart';
 import 'package:smh_front/models/neighborhood.dart';
+import 'package:smh_front/models/product.dart';
 import 'package:smh_front/models/user.dart';
 
 class Order extends Model {
@@ -31,6 +32,7 @@ class Order extends Model {
     Map<String, dynamic> json, {
     User? user,
     Neighborhood? neighborhood,
+    List<OrderItem>? items,
   }) {
     return Order(
       id: json['id'] as int?,
@@ -42,7 +44,7 @@ class Order extends Model {
       recipientPhone: json['recipientPhone'] as String?,
       neighborhood:
           neighborhood ?? Neighborhood(id: json['neighborhoodId'] as int?),
-      items: (json['items'] as List<dynamic>?)
+      items: items ?? (json['items'] as List<dynamic>?)
           ?.map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       createdAt: json['createdAt'] as String,
@@ -73,23 +75,23 @@ enum OrderStatus { pending, inProgress, completed }
 
 class OrderItem {
   final int? id;
-  final String? productName;
+  final Product? product;
   final double? estimatedQuantity;
   final double? unit;
   final double? estimatedUnitPrice;
 
   const OrderItem({
     this.id,
-    this.productName,
+    this.product,
     this.estimatedQuantity,
     this.unit,
     this.estimatedUnitPrice,
   });
 
-  factory OrderItem.fromJson(Map<String, dynamic> json) {
+  factory OrderItem.fromJson(Map<String, dynamic> json, { Product? product }) {
     return OrderItem(
       id: json['id'] as int?,
-      productName: json['productName'] as String?,
+      product: product ?? Product(id: json['productId'], name: json['productName'] as String?),
       estimatedQuantity: (json['estimatedQuantity'] as num?)?.toDouble(),
       unit: (json['unit'] as num?)?.toDouble(),
       estimatedUnitPrice: (json['estimatedUnitPrice'] as num?)?.toDouble(),
@@ -99,7 +101,8 @@ class OrderItem {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'productName': productName,
+      'productId': product?.id,
+      'productName': product?.name,
       'estimatedQuantity': estimatedQuantity,
       'unit': unit,
       'estimatedUnitPrice': estimatedUnitPrice,
