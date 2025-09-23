@@ -6,47 +6,56 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:smh_front/main.dart';
 import 'package:smh_front/models/user.dart';
 import 'package:smh_front/services/auth_service.dart';
-import 'package:smh_front/services/neighborhood_service.dart';
-import 'package:smh_front/services/order_service.dart';
 import 'package:smh_front/services/system.dart';
 import 'package:smh_front/services/user_service.dart';
 
 void main() {
-  System.init(apiUrl: 'http://49.13.197.63:8003/api');
+  const MethodChannel channel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
-    UserService userService = UserService();
-    AuthService authService = AuthService(userService: userService);
-    NeighborhoodService neighborhoodService = NeighborhoodService();
-    OrderService orderService = OrderService(
-      userService: userService,
-      neighborhoodService: neighborhoodService,
-    );
+  setUpAll(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    // Mock method calls for flutter_secure_storage
+    channel.setMockMethodCallHandler((MethodCall methodCall) async {
+      if (methodCall.method == 'read') {
+        // Return a mocked value for the 'read' method
+        return 'mocked_token'; // Adjust based on what your auth service expects
+      }
+      if (methodCall.method == 'write') {
+        // Handle 'write' if used in your auth service
+        return null;
+      }
+      if (methodCall.method == 'delete') {
+        // Handle 'delete' if used
+        return null;
+      }
+      throw MissingPluginException(
+        'No implementation for ${methodCall.method}',
+      );
+    });
 
-  test('Tesing auth service', () async {
-
-    User user = await authService.logIn('sophie_shopper', 'Test237@');
-    expect(user.username, 'sophie_shopper');
+    System.init(apiUrl: 'http://49.13.197.63:8003/api');
   });
 
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(MyApp());
+  tearDownAll(() {
+    channel.setMethodCallHandler(null);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  // Common
+  UserService userService = UserService();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  group('Auth service tests', () {
+    AuthService authService = AuthService(userService: userService);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  }, skip: true);
+    test('Tesing auth service', () async {
+      User user = await authService.logIn('sophie_shopper', 'Test237@');
+      expect(user.username, 'sophie_shopper');
+    });
+  });
 }
