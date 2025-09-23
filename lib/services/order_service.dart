@@ -2,16 +2,19 @@ import 'package:dio/dio.dart';
 import 'package:smh_front/models/model.dart';
 import 'package:smh_front/models/neighborhood.dart';
 import 'package:smh_front/models/order.dart';
+import 'package:smh_front/models/product.dart';
 import 'package:smh_front/models/user.dart';
 import 'package:smh_front/services/neighborhood_service.dart';
+import 'package:smh_front/services/product_service.dart';
 import 'package:smh_front/services/service.dart';
 import 'package:smh_front/services/user_service.dart';
 
 class OrderService extends Service {
   final UserService userService;
+  final ProductService productService;
   final NeighborhoodService neighborhoodService;
 
-  OrderService({required this.userService, required this.neighborhoodService})
+  OrderService({required this.userService, required this.productService, required this.neighborhoodService})
     : super(remotePath: '/orders');
 
   Future<PaginatedData<Order>> getOrders({
@@ -251,8 +254,15 @@ class OrderService extends Service {
       final User user = await userService.getUser(id: object['userId']);
       final Neighborhood neighborhood = await neighborhoodService
           .getNeighborhood(id: object['neighborhoodId']);
+      
+      List<OrderItem> items = List.empty(growable: true);
+      for (Map<String, dynamic> itemData in object['items']) {
+        final Product product = await productService.getProduct(id: itemData['productId']);
+        final OrderItem item = OrderItem.fromJson(itemData, product: product);
+        items.add(item);
+      }
 
-      return Order.fromJson(object, user: user, neighborhood: neighborhood);
+      return Order.fromJson(object, user: user, neighborhood: neighborhood, items: items);
     } else {
       return Order.fromJson(object);
     }
